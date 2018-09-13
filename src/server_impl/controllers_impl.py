@@ -16,33 +16,32 @@ def service_specific_init(app):
 
 class DevelopersController_impl(object):
 
-	@staticmethod
-	def get_run_status(runId):
+    @staticmethod
+    def get_run_status(runId):
+        return RunStatus(run_status=lakitu_impl.check_run(runId))
 
-		return RunStatus(run_status=lakitu_impl.check_run(runId))
+    @staticmethod
+    def get_run_results(runId):  # noqa: E501
+        return abort(501) # Not implemented.
 
-	@staticmethod
-	def get_run_results(runId):  # noqa: E501
-	    return abort(501) # Not implemented.
+    @staticmethod
+    def list_pipeline_parameters(name, version):  # noqa: E501
+        entry_array = lakitu_impl.pipeline_parameters(name, version)
+        parameter_descriptions = [ ParameterDescription(help_description=entry[lakitu_impl.LUIGI_HELP], 
+            parameter_name=entry[lakitu_impl.LUIGI_PARAMETER]) for entry in entry_array]
 
-	@staticmethod
-	def list_pipeline_parameters(name, version):  # noqa: E501
-		entry_array = lakitu_impl.pipeline_parameters(name, version)
-		parameter_descriptions = [ ParameterDescription(help_description=entry[lakitu_impl.LUIGI_HELP], 
-			parameter_name=entry[lakitu_impl.LUIGI_PARAMETER]) for entry in entry_array]
+        return parameter_descriptions
 
-		return parameter_descriptions
+    @staticmethod
+    def list_pipelines():  # noqa: E501
+        return Pipelines.from_dict(lakitu_impl.list_pipelines())
 
-	@staticmethod
-	def list_pipelines():  # noqa: E501
-	    return Pipelines.from_dict(lakitu_impl.list_pipelines())
-
-	@staticmethod
-	def run_pipeline(name, version, parameters):  # noqa: E501
-		lakitu_format_parameters = []
-		# Lakitu needs the parameters in a list form.
-		for parameter in parameters:
-			lakitu_format_parameters.append(parameter.parameter_name)
-			lakitu_format_parameters.append(parameter.parameter_value)
-		run_id = lakitu_impl.run_pipeline(name, version, lakitu_format_parameters)
-		return RunSubmission(run_id=run_id)
+    @staticmethod
+    def run_pipeline(name, version, parameters):  # noqa: E501
+        lakitu_format_parameters = []
+        # Lakitu needs the parameters in a list form.
+        for parameter in parameters:
+            lakitu_format_parameters.append(parameter.parameter_name)
+            lakitu_format_parameters.append(parameter.parameter_value)
+        run_id = lakitu_impl.run_pipeline(name, version, lakitu_format_parameters)
+        return RunSubmission(run_id=run_id)
