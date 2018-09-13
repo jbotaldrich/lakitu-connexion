@@ -1,0 +1,322 @@
+---
+swagger: "2.0"
+info:
+  description: "An API for running lakitu pipelines"
+  version: "1.0.0"
+  title: "Lakitu API"
+  contact:
+    email: "atkeller@uw.edu"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "virtserver.swaggerhub.com"
+basePath: "/maccosslab/lakitu/1.0.0"
+tags:
+- name: "admins"
+  description: "Secured Admin-only calls"
+- name: "developers"
+  description: "Operations available to regular developers"
+schemes:
+- "https"
+paths:
+  /pipelines:
+    get:
+      tags:
+      - "developers"
+      summary: "lists available pipelines"
+      description: "Lists all available pipelines and their versions\n"
+      operationId: "list_pipelines"
+      produces:
+      - "application/json"
+      parameters: []
+      responses:
+        200:
+          description: "pipelines and their versions"
+          examples:
+            application/json:
+              PackageSources:
+              - ChannelName: "atkeller"
+                Pipelines:
+                - PipelineName: "encyclopediadataquery"
+                  PipelineVersions:
+                  - "0.0.3"
+                  - "1.0.0"
+                  - "2.0.0"
+                - PipelineName: "pecanbuildlibrary"
+                  PipelineVersions:
+                  - "1.0.0"
+                - PipelineName: "crux"
+                  PipelineVersions:
+                  - "0.0.1"
+                  - "0.0.2"
+                Type: "conda_repository"
+          schema:
+            $ref: "#/definitions/Pipelines"
+      x-swagger-router-controller: "swagger_server.controllers.developers_controller"
+  /results/{runId}:
+    get:
+      tags:
+      - "developers"
+      summary: "Get results of a job that has reached \"Complete\" status"
+      description: "PROPOSED ADDITION TO API. Provides an S3 path to download the\
+        \ results of the pipeline"
+      operationId: "get_run_results"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "runId"
+        in: "path"
+        description: "Run id provided in a RunSubmission response"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/RunResults"
+        400:
+          description: "Job is not complete"
+        404:
+          description: "Run id not found"
+      x-swagger-router-controller: "swagger_server.controllers.developers_controller"
+  /run/{name}/{version}:
+    get:
+      tags:
+      - "developers"
+      summary: "List parameters for a pipeline"
+      description: "This call provides a list of parameters that must be defined in\
+        \ order to begin a pipeline run. Each parameter is also returned with a help\
+        \ description about its usage. This provides the user the opportunity to select\
+        \ appropriate values for the pipeline options before kicking off a run. Note\
+        \ that some parameters will request an s3 path. In these cases, it is up to\
+        \ the API user (the developer) to provide a means for the end-user to upload\
+        \ appropriate files to s3, and to provide an s3 path accessible to lakitu\
+        \ (such as a publicly accessible temporary s3 path). (NOTE FOR FUTURE DEVELOPMENT\
+        \ - By standardizing that pipeline developers include parsable metadata in\
+        \ the help description, additional information like data type and default\
+        \ values could be returned by this call as well. Data type info would allow\
+        \ for features like a file upload dialog when an s3 path is required by the\
+        \ pipeline.)\n"
+      operationId: "list_pipeline_parameters"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "name"
+        in: "path"
+        description: "Name of pipeline to return"
+        required: true
+        type: "string"
+        x-example: "encyclopediadataquery"
+      - name: "version"
+        in: "path"
+        description: "Version of pipeline to return"
+        required: true
+        type: "string"
+        x-example: "0.0.3"
+      responses:
+        200:
+          description: "Successful operation"
+          examples:
+            application/json:
+            - HelpDescription: "Precursor mass tolerance in ppm"
+              ParameterName: "precursor-ppm-error"
+            - HelpDescription: "An S3 URL pointing to a folder containing MS files"
+              ParameterName: "ms-set"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/ParameterDescription"
+        400:
+          description: "Invalid pipeline name and version supplied"
+        404:
+          description: "Pipeline not found"
+      x-swagger-router-controller: "swagger_server.controllers.developers_controller"
+    post:
+      tags:
+      - "developers"
+      summary: "Run a pipeline with the provided parameters"
+      description: "Here a pipeline is started by specifying the pipeline name and\
+        \ version along with values for all of the pipeline's required paramters.\
+        \ See the documentation for the GET call to obtain a list of required parameters\
+        \ for a pipeline. This pipeline run call may succeed even if there are missing\
+        \ or incorrect parameters or values provided. A job id is returned by this\
+        \ call which can be used to retrieve the status and final output of the run.\n"
+      operationId: "run_pipeline"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "name"
+        in: "path"
+        description: "Name of pipeline to return"
+        required: true
+        type: "string"
+        x-example: "encyclopediadataquery"
+      - name: "version"
+        in: "path"
+        description: "Version of pipeline to return"
+        required: true
+        type: "string"
+        x-example: "0.0.3"
+      - in: "body"
+        name: "parameters"
+        description: "List of parameter/value pairs\n"
+        required: true
+        schema:
+          type: "array"
+          items:
+            $ref: "#/definitions/Parameter"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/RunSubmission"
+        400:
+          description: "Invalid pipeline name and version supplied"
+        404:
+          description: "Pipeline not found"
+      x-swagger-router-controller: "swagger_server.controllers.developers_controller"
+  /status/{runId}:
+    get:
+      tags:
+      - "developers"
+      summary: "Get run status"
+      description: "PROPOSED ADDITION TO API. Providing a run id will allow for retrieving\
+        \ of a running pipeline's status and any error or diagnostic information."
+      operationId: "get_run_status"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "runId"
+        in: "path"
+        description: "Run id provided in a RunSubmission response"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/RunStatus"
+        400:
+          description: "Invalid run id supplied"
+        404:
+          description: "Run id not found"
+      x-swagger-router-controller: "swagger_server.controllers.developers_controller"
+definitions:
+  CondaSource:
+    type: "object"
+    required:
+    - "ChannelName"
+    - "Pipelines"
+    - "Type"
+    properties:
+      ChannelName:
+        type: "string"
+        example: "atkeller"
+        description: "The anaconda channel hosted at anaconda.org/{ChannelName}"
+      Pipelines:
+        type: "array"
+        items:
+          $ref: "#/definitions/Pipeline"
+      Type:
+        $ref: "#/definitions/PackageSourceType"
+  PackageSourceType:
+    type: "string"
+    enum:
+    - "conda_repository"
+  Parameter:
+    type: "object"
+    required:
+    - "ParameterName"
+    - "ParameterValue"
+    properties:
+      ParameterName:
+        type: "string"
+        example: "precursor-ppm-error"
+      ParameterValue:
+        type: "string"
+        example: "10.0"
+  ParameterDescription:
+    type: "object"
+    required:
+    - "HelpDescription"
+    - "ParameterName"
+    properties:
+      HelpDescription:
+        type: "string"
+      ParameterName:
+        type: "string"
+    example:
+      HelpDescription: "Precursor mass tolerance in ppm"
+      ParameterName: "precursor-ppm-error"
+  Pipeline:
+    type: "object"
+    required:
+    - "PipelineName"
+    - "PipelineVersions"
+    properties:
+      PipelineName:
+        type: "string"
+        example: "encyclopediadataquery"
+        description: "name of the pipeline"
+      PipelineVersions:
+        type: "array"
+        example:
+        - "0.0.3"
+        - "1.0.0"
+        - "2.0.0"
+        items:
+          type: "string"
+  Pipelines:
+    type: "object"
+    required:
+    - "PackageSources"
+    properties:
+      PackageSources:
+        type: "array"
+        description: "array of package sources"
+        items:
+          $ref: "#/definitions/CondaSource"
+  RunResults:
+    type: "object"
+    required:
+    - "OutputPath"
+    properties:
+      OutputPath:
+        type: "string"
+        format: "uri"
+        description: "An S3 path that may be used to download the final output of\
+          \ the pipeline"
+    example:
+      OutputPath: "http://example.com/aeiou"
+  RunStatus:
+    type: "object"
+    required:
+    - "RunStatus"
+    properties:
+      Error:
+        type: "string"
+        description: "Additional diagnostic information that may be provided in the\
+          \ event that a run reaches the Failed state"
+      RunStatus:
+        type: "string"
+        enum:
+        - "Running"
+        - "Failed"
+        - "Complete"
+    example:
+      RunStatus: "Running"
+      Error: "Error"
+  RunSubmission:
+    type: "object"
+    required:
+    - "RunId"
+    properties:
+      RunId:
+        type: "string"
+        format: "uuid"
+        description: "A unique identifier for tracking a run submission"
+    example:
+      RunId: "046b6c7f-0b8a-43b9-b35d-6489e6daee91"
+x-components: {}
